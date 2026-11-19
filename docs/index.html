@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credit Risk Model Studio · Snowflake guide</title>
+<meta name="description" content="Build, validate, monitor, and act on a consumer-loan default model in Snowflake, without moving borrower data to laptops. Synthetic data, runs in your browser.">
+<meta name="color-scheme" content="light dark">
+<meta name="snowflake-source" content="cortex-agent-authored">
+<script type="application/json" id="snowflake-report-metadata">
+{
+  "generated": "2026-11-19",
+  "intent": "GitHub Pages landing page for the Credit Risk Model Studio Snow Pack",
+  "dataSources": [
+    { "type": "file", "path": "data/sample/monitoring.json" },
+    { "type": "file", "path": "data/sample/models.json" },
+    { "type": "query", "warehouse": "CREDIT_RISK_STUDIO_WH", "sql": "SELECT MONTH, PSI FROM CREDIT_RISK_STUDIO.APP.PSI_BY_MONTH WHERE FEATURE = 'UTILIZATION' ORDER BY MONTH" },
+    { "type": "query", "warehouse": "CREDIT_RISK_STUDIO_WH", "sql": "SELECT MODEL_VERSION, PAYLOAD:oot:auc::FLOAT AS OOT_AUC FROM CREDIT_RISK_STUDIO.ML.MODEL_EVAL" }
+  ],
+  "sections": [
+    { "id": "top", "title": "Hero and drift dial", "producerNotes": "PSI sparkline points and AUC values are inlined from the two queries above (2026-09 PSI 0.34; OOT AUC V1 0.724, V2 0.733)." },
+    { "id": "problem", "title": "The business problem" },
+    { "id": "story", "title": "Story beats", "producerNotes": "Planted stories documented in data/README.md." },
+    { "id": "tour", "title": "Guided tour", "dataSources": [{ "type": "file", "path": "docs/images/" }], "producerNotes": "Screenshots captured from Sample mode with scripts/capture-screenshots.mjs (npm run capture)." },
+    { "id": "capabilities", "title": "Capabilities", "producerNotes": "Each capability was run in live mode on 2026-11-19." },
+    { "id": "run", "title": "Run it" }
+  ]
+}
+</script>
+
+<style>
+  :root {
+    --paper: #f6f3ec; --paper-2: #eee9dd; --card: #fff; --ink: #13201c; --ink-2: #44524c; --muted: #7b8681; --line: #e2dccf;
+    --emerald: #0e7c66; --emerald-bg: #dcf1e9; --indigo: #3d4bb0; --indigo-bg: #e3e6fb; --amber: #b86e06; --amber-bg: #fbedd5; --coral: #cc4527; --coral-bg: #fbe2da;
+    --night: #0b1513; --night-2: #12201c; --night-ink: #e8f1ed; --night-muted: #8fa39b;
+    --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --shadow: 0 1px 2px rgba(19,32,28,.06), 0 18px 40px -22px rgba(19,32,28,.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #0a1311; --paper-2: #0e1a17; --card: #111d1a; --ink: #e8f1ed; --ink-2: #a8b9b2; --muted: #75877f; --line: #1f302b;
+      --emerald: #2cc59f; --emerald-bg: rgba(44,197,159,.13); --indigo: #8b98ff; --indigo-bg: rgba(139,152,255,.14); --amber: #f0b34a; --amber-bg: rgba(240,179,74,.13);
+      --coral: #ff7b5c; --coral-bg: rgba(255,123,92,.13); --shadow: 0 1px 2px rgba(0,0,0,.5), 0 18px 40px -22px rgba(0,0,0,.8); }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  img, svg { max-width: 100%; } img { display: block; height: auto; }
+  code { font: .88em var(--mono); background: var(--paper-2); padding: .1em .35em; border-radius: 5px; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  .serif { font-family: var(--serif); letter-spacing: -.01em; }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 650; border: 1px solid var(--line); background: var(--card); color: var(--ink-2); }
+  .chip.em { background: var(--emerald-bg); color: var(--emerald); border-color: transparent; }
+  .chip.am { background: var(--amber-bg); color: var(--amber); border-color: transparent; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 14px; font-weight: 650; text-decoration: none; transition: transform .15s ease, box-shadow .2s ease; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn.primary { color: #fff; background: linear-gradient(135deg, #14a383, #3d4bb0); box-shadow: 0 10px 26px -12px rgba(20,163,131,.8); }
+  .btn.ghost { border: 1px solid rgba(232,241,237,.25); color: var(--night-ink); }
+
+  /* Hero: full-bleed ink panel, deliberately unlike the app's paper theme */
+  .hero { position: relative; overflow: hidden; color: var(--night-ink); background:
+      radial-gradient(900px 420px at 85% -10%, rgba(98,112,214,.35), transparent 60%),
+      radial-gradient(800px 420px at 0% 110%, rgba(20,163,131,.32), transparent 60%), var(--night); }
+  .hero::before { content: ""; position: absolute; inset: 0; opacity: .5; pointer-events: none;
+    background-image: linear-gradient(rgba(232,241,237,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(232,241,237,.05) 1px, transparent 1px); background-size: 40px 40px; }
+  .nav { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 20px 0; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--serif); font-size: 18px; }
+  .brand svg { width: 30px; height: 30px; }
+  .nav nav { display: flex; gap: 20px; font-size: 14px; color: var(--night-muted); }
+  .nav nav a { text-decoration: none; } .nav nav a:hover { color: var(--night-ink); }
+  .hero-grid { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; gap: 48px; align-items: center; padding: 48px 0 72px; }
+  .hero h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(38px, 5.4vw, 64px); line-height: 1.04; margin: 14px 0 20px; }
+  .hero h1 em { font-style: italic; background: linear-gradient(90deg, #5fe0bd, #aab4ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p.lede { font-size: 18px; color: #c4d3cd; max-width: 620px; margin: 0 0 28px; }
+  .hero .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 26px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13px; color: var(--night-muted); }
+  .facts b { color: var(--night-ink); font-weight: 650; }
+  .dial { position: relative; background: rgba(18,32,28,.7); border: 1px solid rgba(232,241,237,.12); border-radius: 24px; padding: 26px; backdrop-filter: blur(8px); box-shadow: 0 30px 80px -30px rgba(0,0,0,.8); }
+  .dial .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .dial .big { font-family: var(--serif); font-size: 64px; line-height: 1; }
+  .dial .tag { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #ff9b82; }
+  .dial .pulse { width: 9px; height: 9px; border-radius: 50%; background: #ff7b5c; animation: ping 1.6s ease-out infinite; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(255,123,92,.6); } 100% { box-shadow: 0 0 0 12px transparent; } }
+  .spark { width: 100%; height: 120px; margin: 14px 0 6px; }
+  .spark path.l { stroke-dasharray: 600; stroke-dashoffset: 600; animation: draw 2.4s ease forwards .3s; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .dial .mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .dial .mini div { background: rgba(232,241,237,.05); border-radius: 14px; padding: 10px 12px; }
+  .dial .mini span { display: block; font-size: 11px; color: var(--night-muted); }
+  .dial .mini strong { font-family: var(--serif); font-size: 22px; font-weight: 500; }
+
+  .disclaimer { background: var(--amber-bg); color: var(--ink-2); font-size: 14px; }
+  .disclaimer .wrap { padding: 12px 24px; } .disclaimer strong { color: var(--amber); }
+
+  section { padding: 84px 0; }
+  .sec-head { max-width: 760px; margin-bottom: 40px; }
+  .sec-head h2 { font-family: var(--serif); font-weight: 500; font-size: clamp(30px, 3.6vw, 44px); line-height: 1.1; margin: 10px 0 14px; }
+  .sec-head p { color: var(--ink-2); font-size: 17px; margin: 0; }
+
+  .problem { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .pcard { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 24px; box-shadow: var(--shadow); }
+  .pcard .n { font-family: var(--serif); font-size: 46px; line-height: 1; color: var(--emerald); }
+  .pcard h3 { margin: 12px 0 6px; font-size: 17px; } .pcard p { margin: 0; color: var(--ink-2); font-size: 15px; }
+
+  /* Story timeline */
+  .timeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; position: relative; counter-reset: beat; }
+  .timeline::before { content: ""; position: absolute; top: 22px; left: 10%; right: 10%; height: 2px; background: linear-gradient(90deg, var(--coral), var(--amber), var(--emerald), var(--indigo)); opacity: .55; }
+  .beat { position: relative; text-align: center; padding: 0 10px; }
+  .beat .dot { width: 46px; height: 46px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; background: var(--card); border: 2px solid var(--line); font-family: var(--serif); font-size: 20px; box-shadow: var(--shadow); }
+  .beat:nth-child(1) .dot { border-color: var(--coral); color: var(--coral); } .beat:nth-child(2) .dot { border-color: var(--amber); color: var(--amber); }
+  .beat:nth-child(3) .dot { border-color: var(--emerald); color: var(--emerald); } .beat:nth-child(4) .dot { border-color: var(--emerald); color: var(--emerald); } .beat:nth-child(5) .dot { border-color: var(--indigo); color: var(--indigo); }
+  .beat h3 { font-size: 15px; margin: 0 0 6px; } .beat p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+  .beat .cap { display: inline-block; margin-top: 8px; font-size: 11.5px; font-weight: 650; color: var(--muted); }
+
+  /* Screenshot spreads */
+  .spread { display: grid; grid-template-columns: 1.45fr 1fr; gap: 44px; align-items: center; margin-bottom: 76px; }
+  .spread:nth-of-type(even) { grid-template-columns: 1fr 1.45fr; } .spread:nth-of-type(even) figure { order: 2; }
+  figure { margin: 0; }
+  .shot { border-radius: 18px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--card); transition: transform .35s ease; }
+  .shot:hover { transform: translateY(-3px) rotate(-.15deg); }
+  figcaption { margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+  figcaption b { color: var(--ink-2); }
+  .spread h3 { font-family: var(--serif); font-weight: 500; font-size: 30px; line-height: 1.15; margin: 10px 0 12px; }
+  .spread p { color: var(--ink-2); margin: 0 0 14px; }
+  .spread ul { margin: 0; padding-left: 18px; color: var(--ink-2); } .spread li { margin-bottom: 6px; }
+  .persona { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .persona.ds { color: var(--indigo); } .persona.mrm { color: var(--emerald); } .persona.pm { color: var(--coral); }
+
+  /* Capability map */
+  .caps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .cap { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+  .cap h3 { margin: 0 0 6px; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cap p { margin: 0 0 10px; font-size: 14px; color: var(--ink-2); }
+  .cap a { font-size: 13px; color: var(--emerald); font-weight: 650; text-decoration: none; } .cap a:hover { text-decoration: underline; }
+
+  .cocoa { background: var(--night); color: var(--night-ink); border-radius: 28px; padding: 40px; display: grid; grid-template-columns: .9fr 1.1fr; gap: 36px; }
+  .cocoa h2 { font-family: var(--serif); font-weight: 500; font-size: 34px; line-height: 1.12; margin: 10px 0 12px; }
+  .cocoa p { color: #c4d3cd; margin: 0; } .cocoa .eyebrow { color: var(--night-muted); }
+  .prompt { background: rgba(232,241,237,.06); border: 1px solid rgba(232,241,237,.1); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; font-size: 14.5px; color: #dbe6e1; }
+  .prompt::before { content: "›"; color: #5fe0bd; font-weight: 700; margin-right: 8px; }
+
+  .run { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+  .step .k { font-family: var(--serif); font-size: 28px; color: var(--emerald); }
+  .step h3 { margin: 6px 0 6px; font-size: 16px; } .step p { margin: 0; font-size: 14px; color: var(--ink-2); }
+  pre { margin: 10px 0 0; background: var(--paper-2); border-radius: 12px; padding: 12px 14px; overflow-x: auto; font: 12.5px/1.55 var(--mono); }
+
+  footer { border-top: 1px solid var(--line); padding: 36px 0 56px; font-size: 13.5px; color: var(--muted); }
+  footer p { margin: 0 0 8px; }
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .spark path.l { animation: none; stroke-dashoffset: 0; } .dial .pulse { animation: none; } }
+
+  @media (max-width: 900px) {
+    .hero-grid, .spread, .spread:nth-of-type(even), .cocoa { grid-template-columns: 1fr; } .spread:nth-of-type(even) figure { order: 0; }
+    .problem, .caps, .run { grid-template-columns: 1fr; }
+    .timeline { grid-template-columns: 1fr; gap: 18px; } .timeline::before { display: none; }
+    .beat { display: grid; grid-template-columns: 46px 1fr; gap: 14px; text-align: left; } .beat .dot { margin: 0; }
+    .nav nav { display: none; } section { padding: 60px 0; } .cocoa { padding: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="nav">
+      <a class="brand" href="#top" aria-label="Credit Risk Model Studio">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="mk" x1="0" x2="1" y1="1" y2="0"><stop offset="0" stop-color="#14a383"/><stop offset="1" stop-color="#6270d6"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="9" fill="url(#mk)"/><path d="M7 22 C 12 21, 14 12, 18 13 S 23 9, 25 8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="25" cy="8" r="2.4" fill="#fff"/></svg>
+        Credit Risk Model Studio
+      </a>
+      <nav aria-label="Page"><a href="#story">Story</a><a href="#tour">Tour</a><a href="#capabilities">Capabilities</a><a href="#run">Run it</a><a href="https://github.com/sfc-gh-ooral/sfguide-credit-risk-model-studio">GitHub</a></nav>
+    </div>
+    <div class="hero-grid" id="top">
+      <div>
+        <span class="eyebrow" style="color:#8fa39b">Banking · Risk · Snowflake guide</span>
+        <h1>Build, validate, and monitor a credit model <em>where the data already lives</em>.</h1>
+        <p class="lede">Data scientists at consumer lenders often export loan and bureau data to laptops to build default models. That copies personal data, slows deployment, and leaves model risk reviewers piecing together evidence. This guide keeps the whole lifecycle in Snowflake, from features to validator sign-off, and ends with an early-warning queue portfolio managers can act on.</p>
+        <div class="ctas">
+          <a class="btn primary" href="try/">Try it in your browser →</a>
+          <a class="btn ghost" href="https://github.com/sfc-gh-ooral/sfguide-credit-risk-model-studio">View the repository</a>
+        </div>
+        <div class="facts">
+          <span><b>Try it:</b> no account, synthetic data</span>
+          <span><b>Live setup:</b> one SQL script, ~20 min on XSMALL</span>
+          <span><b>Needs:</b> Standard Edition + Cortex AI</span>
+        </div>
+      </div>
+      <div class="dial" aria-label="Example drift alert from the guide's synthetic data">
+        <div class="row"><span class="tag"><span class="pulse" aria-hidden="true"></span>Drift alert</span><span style="font-size:12px;color:var(--night-muted)">synthetic data</span></div>
+        <div class="row" style="margin-top:10px"><span class="big">0.34</span><span style="font-size:13px;color:var(--night-muted);text-align:right">PSI · revolving utilization<br>2026-09 · threshold 0.25</span></div>
+        <svg class="spark" viewBox="0 0 320 120" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient id="fl" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff7b5c" stop-opacity=".35"/><stop offset="1" stop-color="#ff7b5c" stop-opacity="0"/></linearGradient></defs>
+          <line x1="0" x2="320" y1="40" y2="40" stroke="#ff9b82" stroke-dasharray="4 5" stroke-width="1.2" opacity=".7"/>
+          <path d="M0 109 L29 104 L58 97 L87 89 L116 79 L145 67 L174 54 L203 43 L232 39 L261 27 L290 16 L319 6 L319 120 L0 120 Z" fill="url(#fl)"/>
+          <path class="l" d="M0 109 L29 104 L58 97 L87 89 L116 79 L145 67 L174 54 L203 43 L232 39 L261 27 L290 16 L319 6" fill="none" stroke="#ff7b5c" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--night-muted)"><span>2025-10</span><span>2026-09</span></div>
+        <div class="mini">
+          <div><span>Champion AUC</span><strong>0.724</strong></div>
+          <div><span>Challenger AUC</span><strong style="color:#aab4ff">0.733</strong></div>
+          <div><span>Queue</span><strong style="color:#5fe0bd">150</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="disclaimer" role="note"><div class="wrap"><strong>Synthetic data, illustrative logic.</strong> Every borrower, loan, and number here is generated. This is not a validated credit model and not regulatory, model risk management, fair lending, or lending advice.</div></div>
+
+<main>
+<section id="problem">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">The business problem</span><h2>Three handoffs, three places for evidence to get lost</h2>
+      <p>Consumer lending risk teams build, validate, and use default models in different tools. Each handoff costs time and leaves a copy of data behind.</p></div>
+    <div class="problem">
+      <div class="pcard reveal"><div class="n">01</div><h3>Data scientists extract to laptops</h3><p>Loan and bureau extracts create copies of personal data outside governed storage, and every retrain starts with another extract.</p></div>
+      <div class="pcard reveal"><div class="n">02</div><h3>Validators rebuild the evidence</h3><p>Model risk management reviews (for example, under SR 11-7-style expectations) need lineage, out-of-time results, fairness, and drift in one place.</p></div>
+      <div class="pcard reveal"><div class="n">03</div><h3>Portfolio managers wait</h3><p>Drift is checked by hand, deployment takes weeks, and early-warning lists arrive without reasons anyone can act on.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="story" style="background:var(--paper-2)">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">The story you'll click through</span><h2>From a drift alert to a refreshed queue, with a human in the loop</h2>
+      <p>The synthetic data has these findings planted on purpose, so the walkthrough has something real to discover.</p></div>
+    <div class="timeline reveal">
+      <div class="beat"><div class="dot">1</div><div><h3>Drift alert</h3><p>Utilization in 2025 and later vintages shifts. PSI crosses 0.25 in 2026-06.</p><span class="cap">ML Observability</span></div></div>
+      <div class="beat"><div class="dot">2</div><div><h3>Validator reviews PSI</h3><p>Utilization stands out in the feature heatmap; other features stay stable.</p><span class="cap">Model monitor · SQL PSI</span></div></div>
+      <div class="beat"><div class="dot">3</div><div><h3>Challenger wins</h3><p>V2, trained on recent vintages, beats V1 out of time on AUC, KS, and Gini.</p><span class="cap">Snowflake ML · Feature Store</span></div></div>
+      <div class="beat"><div class="dot">4</div><div><h3>Promoted with approval</h3><p>The validator signs off, and the CHAMPION alias moves to V2 with no code change.</p><span class="cap">Model Registry · Task</span></div></div>
+      <div class="beat"><div class="dot">5</div><div><h3>Queue refreshes</h3><p>Accounts are re-scored with SHAP reason codes for outreach or the watchlist.</p><span class="cap">model.run · explain</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="tour">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">A guided tour</span><h2>One app, three people, one governed copy of the data</h2>
+      <p>Screenshots from the app running in Sample mode on the bundled synthetic data. The same screens run live against Snowflake objects created by <code>sql/setup.sql</code>.</p></div>
+
+    <div class="spread reveal">
+      <figure><div class="shot"><img src="images/01-portfolio.png" width="1600" height="1000" loading="lazy" alt="Portfolio overview: active loans, outstanding balance, 30+ DPD rate and expected loss KPIs, a drift alert banner, vintage loss curves, DPD buckets, and the utilization trend"></div>
+        <figcaption><b>Portfolio overview.</b> KPIs, vintage curves, and DPD buckets computed with Snowflake SQL; expected loss uses Model Registry batch scores.</figcaption></figure>
+      <div><span class="persona pm">● Portfolio risk manager</span><h3>The book at a glance, with the alert up front</h3>
+        <p>Balance, delinquency, and vintage curves for about 217,000 performing loans. The drift banner links straight to the evidence.</p>
+        <ul><li>2025 vintages run slightly ahead at the same age</li><li>Expected loss = PD × LGD × EAD (illustrative)</li></ul></div>
+    </div>
+
+    <div class="spread reveal">
+      <figure><div class="shot"><img src="images/02-monitoring.png" width="1600" height="1000" loading="lazy" alt="Monitoring screen: utilization PSI of 0.34 above the 0.25 threshold, PSI by feature over time, a stability heatmap, and the training-versus-current distribution"></div>
+        <figcaption><b>Monitoring.</b> Fixed-bin PSI by feature and month in Snowflake SQL; the drift check calls the ML Observability model monitor.</figcaption></figure>
+      <div><span class="persona mrm">● Model validator</span><h3>See the drift, and see that only one feature drifts</h3>
+        <p>The heatmap isolates revolving utilization. The distribution chart shows how the current book has shifted away from the training sample.</p>
+        <ul><li>Above 0.25 since 2026-06 on this synthetic data set</li><li>Model monitor PSI with a baseline and a segment column</li></ul></div>
+    </div>
+
+    <div class="spread reveal">
+      <figure><div class="shot"><img src="images/03-workbench.png" width="1600" height="1000" loading="lazy" alt="Model workbench: champion V1 and challenger V2 cards, AUC, KS and Gini comparison, calibration by decile, feature importance, and six training runs"></div>
+        <figcaption><b>Model workbench.</b> XGBoost trained in a warehouse with Snowflake ML from Feature Store views, with every sweep run recorded and the best logged to the Model Registry.</figcaption></figure>
+      <div><span class="persona ds">● Data scientist</span><h3>Champion vs. challenger, on the same out-of-time window</h3>
+        <p>Both versions read the same feature views. V2 adds months on bureau and trains through the 2025-03 vintages.</p>
+        <ul><li>AUC 0.733 vs. 0.724 out of time (synthetic data)</li><li>Calibration and gain-based importance per version</li></ul></div>
+    </div>
+
+    <div class="spread reveal">
+      <figure><div class="shot"><img src="images/04-model-card.png" width="1600" height="1000" loading="lazy" alt="Model card: lineage from raw tables to feature views to the registry, fairness by segment, version history, and an AI-drafted documentation section labeled as a sample AI response"></div>
+        <figcaption><b>Model card.</b> Lineage, fairness by segment, and Model Registry versions; the documentation section is drafted with AI_COMPLETE and labeled as a draft.</figcaption></figure>
+      <div><span class="persona mrm">● Model validator</span><h3>The evidence pack, with a first draft written for you</h3>
+        <p>New-to-credit borrowers are underpredicted on this synthetic data set. AI_COMPLETE drafts the "changes from V1 to V2" section from the registry metrics, and the validator edits and owns it.</p>
+        <ul><li>Fairness view is illustrative, by file type</li><li>Draft text uses only the facts passed in</li></ul></div>
+    </div>
+
+    <div class="spread reveal">
+      <figure><div class="shot"><img src="images/05-promotion.png" width="1600" height="1000" loading="lazy" alt="Approval in progress: staged steps recording the approval, moving the CHAMPION alias to V2, running the scoring task, computing SHAP reason codes, and refreshing the queue"></div>
+        <figcaption><b>Human approval.</b> Recording the decision, moving the Model Registry alias, and running the batch-scoring Task, step by step.</figcaption></figure>
+      <div><span class="persona mrm">● Model validator</span><h3>Promotion is a decision, not a deployment</h3>
+        <p>Approving V2 writes an approval record, moves the <code>CHAMPION</code> alias, and runs the scoring task. Scoring code calls the alias, so nothing is redeployed.</p></div>
+    </div>
+
+    <div class="spread reveal">
+      <figure><div class="shot"><img src="images/06-queue.png" width="1600" height="1000" loading="lazy" alt="Early-warning queue after promotion: performing accounts ranked by three-month change in default probability under V2, with SHAP reason codes and review status"></div>
+        <figcaption><b>Early-warning queue.</b> Scores from <code>model.run</code> on the promoted champion, with reason codes from <code>explain</code> (Preview).</figcaption></figure>
+      <div><span class="persona pm">● Portfolio risk manager</span><h3>A queue with reasons you can act on</h3>
+        <p>Performing accounts whose risk rose fastest in three months. Accounts already 30+ days past due go to collections instead.</p></div>
+    </div>
+
+    <div class="spread reveal">
+      <figure><div class="shot"><img src="images/07-account.png" width="1600" height="1000" loading="lazy" alt="Account drill-down: a default-probability gauge, SHAP reason-code bars, twelve months of payments and utilization, and outreach, watchlist, or dismiss actions"></div>
+        <figcaption><b>Account drill-down.</b> SHAP contributions from <code>explain</code>, twelve months of bureau and payment history, and a decision written back to a Snowflake table.</figcaption></figure>
+      <div><span class="persona pm">● Portfolio risk manager</span><h3>Decide, with a note that's recorded</h3>
+        <p>Assign outreach, add to the watchlist, or dismiss with a note. In Live mode the decision goes to <code>APP.EW_ACTIONS</code> through bind variables.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="capabilities" style="background:var(--paper-2)">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">What powers it</span><h2>Snowflake capabilities, each one run in live mode</h2>
+      <p>Everything listed here was run against a Snowflake account with this guide's setup script. Preview features are labeled.</p></div>
+    <div class="caps">
+      <div class="cap reveal"><h3>Feature Store</h3><p>A LOAN entity and two Snowflake-managed feature views on Dynamic Tables; point-in-time training sets.</p><a href="https://docs.snowflake.com/en/developer-guide/snowflake-ml/feature-store/overview">Docs →</a></div>
+      <div class="cap reveal"><h3>Snowflake ML</h3><p>XGBoost trained inside a warehouse with a Python stored procedure, with a small hyperparameter sweep.</p><a href="https://docs.snowflake.com/en/developer-guide/snowflake-ml/overview">Docs →</a></div>
+      <div class="cap reveal"><h3>Model Registry</h3><p>Versions, metrics, and CHAMPION / CHALLENGER aliases; batch inference with <code>model.run</code>.</p><a href="https://docs.snowflake.com/en/developer-guide/snowflake-ml/model-registry/overview">Docs →</a></div>
+      <div class="cap reveal"><h3>Model explainability <span class="chip am">Preview</span></h3><p>Shapley values from <code>explain</code> on registered XGBoost models become reason codes.</p><a href="https://docs.snowflake.com/en/developer-guide/snowflake-ml/model-registry/model-explainability">Docs →</a></div>
+      <div class="cap reveal"><h3>ML Observability</h3><p>A model monitor with a training baseline and a segment column; PSI from <code>MODEL_MONITOR_DRIFT_METRIC</code>.</p><a href="https://docs.snowflake.com/en/developer-guide/snowflake-ml/model-registry/model-observability">Docs →</a></div>
+      <div class="cap reveal"><h3>Tasks</h3><p>Weekly champion and challenger batch scoring; run on demand with <code>EXECUTE TASK</code> after a promotion.</p><a href="https://docs.snowflake.com/en/user-guide/tasks-intro">Docs →</a></div>
+      <div class="cap reveal"><h3>AI_COMPLETE</h3><p>Drafts model card sections from registry metrics, fairness, and drift facts.</p><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_complete">Docs →</a></div>
+      <div class="cap reveal"><h3>Dynamic Tables</h3><p>Back the managed feature views with a daily refresh.</p><a href="https://docs.snowflake.com/en/user-guide/dynamic-tables-about">Docs →</a></div>
+      <div class="cap reveal"><h3>Least-privilege role</h3><p>One role with schema-scoped grants runs the pipeline and the app after a few one-time grants.</p><a href="https://docs.snowflake.com/en/user-guide/security-access-control-overview">Docs →</a></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cocoa reveal">
+      <div><span class="eyebrow">Build it with Cortex Code</span><h2>The training code came from a few plain-language prompts</h2>
+        <p>Data scientists can describe the feature views, label, and comparison they want, and review the code Cortex Code writes, all without leaving governed data. A notebook version for Snowflake Notebooks on Container Runtime is in the repository.</p></div>
+      <div>
+        <div class="prompt">Register a LOAN entity and two Snowflake-managed feature views: static loan terms, and monthly bureau and payment behavior with 3- and 6-month windows.</div>
+        <div class="prompt">Build a point-in-time training set at months 3 and 9 on book with a 12-month 90+ DPD label. Train XGBoost, compare on an out-of-time window, and log the best run with a CHAMPION alias.</div>
+        <div class="prompt">Score the performing book with model.run for every aliased version, and keep the top three positive SHAP contributions as reason codes.</div>
+        <div class="prompt">Create a model monitor on the champion with its training sample as the baseline.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="run" style="padding-top:20px">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">Run it</span><h2>Two ways in</h2>
+      <p>Click through on synthetic data now, or deploy the same app to your account. Setup creates a dedicated database, an XSMALL warehouse, and one role. Cleanup removes all of it.</p></div>
+    <div class="run">
+      <div class="step reveal"><div class="k">0 min</div><h3>Try it in your browser</h3><p>The <a href="try/">hosted example</a> runs on bundled synthetic data. AI responses are labeled samples.</p></div>
+      <div class="step reveal"><div class="k">2 min</div><h3>Run it locally</h3><p>Sample mode needs only Node.js.</p><pre>npm install
+npm run dev</pre></div>
+      <div class="step reveal"><div class="k">~20 min</div><h3>Go live in your account</h3><p>Run <code>sql/setup.sql</code> in a worksheet, add a key pair to <code>.env.local</code>, and switch the header to Live. See the <a href="https://github.com/sfc-gh-ooral/sfguide-credit-risk-model-studio#live-mode-deploy-to-your-account">README</a>.</p></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><strong style="color:var(--ink-2)">Credit Risk Model Studio</strong> · <a href="https://github.com/sfc-gh-ooral/sfguide-credit-risk-model-studio">Repository</a> · <a href="try/">Hosted example</a> · Apache 2.0</p>
+    <p>An illustrative example provided as-is. Not an official Snowflake product, not supported by Snowflake Support, and not a validated credit model. Synthetic data only; outcomes described are possibilities on this synthetic data set, not guarantees. Fairness checks are illustrative.</p>
+    <p>Owner: Oz Oral · Last reviewed: November 2026</p>
+  </div>
+</footer>
+
+<script>
+  // Fade sections in as they scroll into view (no external scripts).
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 }) : null;
+  document.querySelectorAll('.reveal').forEach((el) => (io ? io.observe(el) : el.classList.add('in')));
+</script>
+</body>
+</html>
