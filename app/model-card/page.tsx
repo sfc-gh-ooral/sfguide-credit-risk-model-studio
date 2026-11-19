@@ -95,7 +95,7 @@ function ModelCard() {
 
   return (
     <>
-      <PageHeader eyebrow="Model card · model validator" title={`${m.data.modelName} · ${version}`}
+      <PageHeader lens="model-card" eyebrow="Model card" title={`${m.data.modelName} · ${version}`}
         right={<>
           <div className="seg" role="group" aria-label="Version">{(['V1', 'V2'] as const).map((x) => <button key={x} aria-pressed={version === x} onClick={() => { setVersion(x); setDraft(null); }}>{x}</button>)}</div>
           <span className={`chip ${alias === 'CHAMPION' ? 'chip-emerald' : 'chip-indigo'}`}>{alias}</span>

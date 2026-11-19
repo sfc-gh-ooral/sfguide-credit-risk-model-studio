@@ -144,3 +144,7 @@ a { color: inherit; }
 .skeleton { border-radius: 12px; background: linear-gradient(90deg, var(--bg-2), var(--line), var(--bg-2)); background-size: 200% 100%; animation: sheen 1.4s ease infinite; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* The nav scrolls sideways on phones; hide the scrollbar so it never shows as a stray sliver. */
+.topbar nav { scrollbar-width: none; }
+.topbar nav::-webkit-scrollbar { display: none; }

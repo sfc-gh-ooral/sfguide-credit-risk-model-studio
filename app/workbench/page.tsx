@@ -52,7 +52,7 @@ export default function Workbench() {
 
   return (
     <>
-      <PageHeader eyebrow="Model workbench · data scientist" title="Champion vs. challenger, trained where the data lives"
+      <PageHeader lens="workbench" eyebrow="Model workbench" title="Champion vs. challenger, trained where the data lives"
         right={<><SourceChip live={m.live} ms={m.ms} what="results" /><PoweredBy>Snowflake ML · Feature Store · Model Registry</PoweredBy></>}>
         Both versions train in Snowflake from the same Feature Store views and are compared on one out-of-time sample: {m.data.ootWindow}.
         That window sits inside the utilization drift, which is exactly what the champion never saw.

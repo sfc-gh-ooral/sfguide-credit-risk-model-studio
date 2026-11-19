@@ -34,7 +34,7 @@ export default function Overview() {
 
   return (
     <>
-      <PageHeader eyebrow={`Portfolio overview · as of ${d.asOf}`} title="Your consumer loan book, scored and monitored in place"
+      <PageHeader lens="portfolio" eyebrow={`Portfolio overview · as of ${d.asOf}`} title="Your consumer loan book, scored and monitored in place"
         right={<><SourceChip live={p.live} ms={p.ms} /><PoweredBy>Snowflake SQL + Model Registry</PoweredBy></>}>
         Personal and auto installment loans with monthly bureau and payment history. Every number on this page is computed from tables
         in Snowflake{p.live ? '' : ' (here, from the bundled synthetic copy)'}; nothing is extracted to a laptop.

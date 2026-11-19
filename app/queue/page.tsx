@@ -66,7 +66,7 @@ export default function QueuePage() {
 
   return (
     <>
-      <PageHeader eyebrow="Early-warning queue" title="Performing accounts whose risk is rising fastest"
+      <PageHeader lens="queue" eyebrow="Early-warning queue" title="Performing accounts whose risk is rising fastest"
         right={<><SourceChip live={q.live} ms={q.ms} /><PoweredBy>Model Registry · model.run</PoweredBy><PoweredBy preview>explain</PoweredBy></>}>
         Ranked by the 3-month change in 12-month default probability from the current champion model, {model}. Reason codes are the
         largest positive SHAP contributions. Accounts 30+ days past due go to collections and are excluded.

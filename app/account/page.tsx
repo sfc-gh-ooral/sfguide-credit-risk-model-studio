@@ -11,6 +11,7 @@ import { useStudio } from '@/components/Studio';
 import { activeVersion, getActions, recordAction, useData, usePromotion } from '@/lib/credit-data';
 import { useMode } from '@/lib/mode';
 import { FILE_TYPE_LABELS, featureLabel, featureValue, fmtPct, fmtUsd } from '@/lib/format';
+import { PersonaLens } from '@/components/PersonaLens';
 import { PERSONAS, type ActionRecord, type EwAction, type QueueAccount } from '@/lib/types';
 
 // Semicircle gauge for 12-month default probability.
@@ -69,6 +70,7 @@ function Detail() {
         <div>
           <div className="eyebrow mb-1">{a.product === 'AUTO' ? 'Auto loan' : 'Personal loan'} · {FILE_TYPE_LABELS[a.fileType]} · originated {a.vintage}</div>
           <h1 className="font-display text-3xl md:text-4xl text-ink">{a.borrowerName} <span className="text-muted text-2xl">{a.accountId}</span></h1>
+          <PersonaLens page="account" />
         </div>
         <div className="flex flex-wrap gap-2">
           <span className="chip">{a.state}</span><span className="chip num">Balance {fmtUsd(a.balance)}</span><span className="chip num">APR {fmtPct(a.apr, 2)}</span>

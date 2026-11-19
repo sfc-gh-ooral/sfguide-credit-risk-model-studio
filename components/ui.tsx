@@ -3,8 +3,9 @@
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { AlertTriangle, FlaskConical, Layers, Sparkles } from 'lucide-react';
 import { useEffect } from 'react';
+import { PersonaLens, type LensPage } from './PersonaLens';
 
-export function PageHeader({ eyebrow, title, children, right }: { eyebrow: string; title: string; children?: React.ReactNode; right?: React.ReactNode }) {
+export function PageHeader({ eyebrow, title, children, right, lens }: { eyebrow: string; title: string; children?: React.ReactNode; right?: React.ReactNode; lens?: LensPage }) {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
       className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-7">
@@ -12,6 +13,7 @@ export function PageHeader({ eyebrow, title, children, right }: { eyebrow: strin
         <div className="eyebrow mb-2">{eyebrow}</div>
         <h1 className="font-display text-3xl md:text-[40px] leading-tight text-ink [overflow-wrap:anywhere]">{title}</h1>
         {children && <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{children}</p>}
+        {lens && <PersonaLens page={lens} />}
       </div>
       {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
     </motion.div>

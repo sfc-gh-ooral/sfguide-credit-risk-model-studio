@@ -58,7 +58,7 @@ export default function Monitoring() {
 
   return (
     <>
-      <PageHeader eyebrow="Monitoring · drift and stability" title="Is the book still the one the model learned?"
+      <PageHeader lens="monitoring" eyebrow="Monitoring · drift and stability" title="Is the book still the one the model learned?"
         right={<><SourceChip live={d.live} ms={d.ms} /><PoweredBy>ML Observability (model monitor)</PoweredBy></>}>
         Population stability index (PSI) compares each month&apos;s performing book with the champion&apos;s training sample (2023-01 to 2024-09 vintages). Above {t} is the
         conventional alert level for a material shift.
