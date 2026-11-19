@@ -23,7 +23,7 @@ export function Card({ title, eyebrow, right, children, className = '', delay = 
 }) {
   return (
     <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay }}
-      className={`card p-5 ${className}`}>
+      className={`card p-5 min-w-0 ${className}`}>
       {(title || right) && (
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div>
