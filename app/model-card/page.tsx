@@ -28,10 +28,10 @@ function Lineage() {
   return (
     <div className="grid gap-3 md:grid-cols-5 relative">
       {LINEAGE.map((n, i) => (
-        <motion.div key={n.title} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 * i }} className="relative">
+        <motion.div key={n.title} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 * i }} className="relative min-w-0">
           <div className="rounded-2xl p-3.5 h-full border" style={{ background: 'var(--card-2)', borderColor: 'var(--line)' }}>
             <div className="flex items-center gap-2 mb-2"><n.icon className="w-4 h-4" style={{ color: i === 3 ? 'var(--indigo)' : 'var(--emerald)' }} aria-hidden /><span className="font-semibold text-sm text-ink">{n.title}</span></div>
-            <ul className="space-y-0.5 text-[11.5px] font-mono text-ink-2">{n.items.map((it) => <li key={it}>{it}</li>)}</ul>
+            <ul className="space-y-0.5 text-[11.5px] font-mono text-ink-2 [overflow-wrap:anywhere]">{n.items.map((it) => <li key={it}>{it}</li>)}</ul>
             <div className="text-[11px] text-muted mt-2">{n.note}</div>
           </div>
           {i < LINEAGE.length - 1 && (

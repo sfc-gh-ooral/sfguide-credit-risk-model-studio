@@ -37,7 +37,7 @@ export function ModeChip() {
 
       {help && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setHelp(false)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="live-help-title" className="card max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-labelledby="live-help-title" className="card max-w-lg w-full p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3 mb-3">
               <h2 id="live-help-title" className="font-display text-xl text-ink">Connect Snowflake to use Live mode</h2>
               <button className="p-1 rounded text-muted" onClick={() => setHelp(false)} aria-label="Close"><X className="w-4 h-4" /></button>
